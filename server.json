@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.yunaremaia/x402-crypto-mcp",
+  "description": "Crypto prices, sentiment, indicators and DeFi yields via x402. 6 tools, no API keys.",
+  "repository": {
+    "url": "https://github.com/yunaremaia/x402-crypto-mcp",
+    "source": "github"
+  },
+  "version": "1.0.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "x402-crypto-mcp",
+      "version": "1.0.1",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
