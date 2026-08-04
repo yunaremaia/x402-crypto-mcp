@@ -1,0 +1,6 @@
+startCommand: "npx x402-crypto-mcp"
+description: "MCP server aggregating 3 x402 crypto services - live prices for 20+ tokens, Fear and Greed sentiment, funding rates, and technical indicators like RSI, MACD, EMA. Pay-per-call via x402 on Base USDC."
+homepage: "https://github.com/yunaremaia/x402-crypto-mcp"
+name: "x402-crypto-mcp"
+license: "MIT"
+version: "1.0.0"
