@@ -17,6 +17,8 @@ const SERVICES = {
   funding: "https://crypto-market-sentiment.vercel.app/entrypoints/funding/invoke",
   indicators: "https://technical-indicators-oracle.vercel.app/entrypoints/indicators/invoke",
   yields: "https://defi-yield-aggregator.vercel.app/entrypoints/yields/invoke",
+  gas: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas/invoke",
+  gas_multi: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas_multi/invoke",
 } as const;
 
 // ── Forward to x402 service ──
@@ -221,6 +223,36 @@ server.tool(
     if (minTvl != null) input.minTvl = minTvl;
     if (stablecoins != null) input.stablecoins = stablecoins;
     const { status, body } = await invokeX402(SERVICES.yields, input);
+    if (status === 402) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
+          },
+        ],
+      };
+    }
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(body.output ?? body, null, 2),
+        },
+      ],
+    };
+  },
+);
+
+// Tool 7: Gas Price
+server.tool(
+  "gas_price",
+  "Get current gas price on an EVM chain. Returns gwei and wei values.",
+  {
+    chain: z.string().min(1).max(20).describe("Chain: ethereum, base, arbitrum, optimism, polygon, bsc, avalanche"),
+  },
+  async ({ chain }) => {
+    const { status, body } = await invokeX402(SERVICES.gas, { chain });
     if (status === 402) {
       return {
         content: [

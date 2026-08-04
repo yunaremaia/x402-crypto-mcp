@@ -12,6 +12,8 @@ declare const SERVICES: {
     readonly funding: "https://crypto-market-sentiment.vercel.app/entrypoints/funding/invoke";
     readonly indicators: "https://technical-indicators-oracle.vercel.app/entrypoints/indicators/invoke";
     readonly yields: "https://defi-yield-aggregator.vercel.app/entrypoints/yields/invoke";
+    readonly gas: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas/invoke";
+    readonly gas_multi: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas_multi/invoke";
 };
 declare function invokeX402(url: string, input: Record<string, any>): Promise<{
     status: number;
