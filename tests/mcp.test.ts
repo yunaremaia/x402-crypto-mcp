@@ -40,10 +40,11 @@ describe("invokeX402", () => {
 });
 
 describe("SERVICES", () => {
-  it("has all 4 service URLs", () => {
+  it("has all 5 service URLs", () => {
     expect(SERVICES.price).toContain("multi-chain-price-oracle");
     expect(SERVICES.sentiment).toContain("crypto-market-sentiment");
     expect(SERVICES.funding).toContain("crypto-market-sentiment");
     expect(SERVICES.indicators).toContain("technical-indicators-oracle");
+    expect(SERVICES.yields).toContain("defi-yield-aggregator");
   });
 });

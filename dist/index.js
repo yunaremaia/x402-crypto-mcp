@@ -12,11 +12,10 @@ import { z } from "zod";
 const SERVICES = {
     price: "https://multi-chain-price-oracle.vercel.app/entrypoints/price/invoke",
     sentiment: "https://crypto-market-sentiment.vercel.app/entrypoints/sentiment/invoke",
-    funding: "https://crypto-market-sentinel.vercel.app/entrypoints/funding/invoke",
+    funding: "https://crypto-market-sentiment.vercel.app/entrypoints/funding/invoke",
     indicators: "https://technical-indicators-oracle.vercel.app/entrypoints/indicators/invoke",
+    yields: "https://defi-yield-aggregator.vercel.app/entrypoints/yields/invoke",
 };
-// Fix: sentiment service is "crypto-market-sentiment" not "crypto-market-sentinel"
-SERVICES.funding = "https://crypto-market-sentiment.vercel.app/entrypoints/funding/invoke";
 // ── Forward to x402 service ──
 async function invokeX402(url, input) {
     try {
@@ -159,6 +158,49 @@ server.tool("market_overview", "Quick market overview: BTC/ETH/SOL prices + Fear
             {
                 type: "text",
                 text: JSON.stringify(overview, null, 2),
+            },
+        ],
+    };
+});
+// Tool 6: DeFi Yields
+server.tool("defi_yields", "Get top DeFi yields across 40+ chains (DeFiLlama, 15,000+ pools). Filter by chain, project, symbol, min APY, min TVL, stablecoins.", {
+    chain: z.string().max(30).optional().describe("Chain: Ethereum, Arbitrum, Solana, Base..."),
+    project: z.string().max(50).optional().describe("Protocol: lido, aave, uniswap..."),
+    symbol: z.string().max(20).optional().describe("Token symbol: USDC, ETH, SOL..."),
+    minApy: z.number().optional().describe("Minimum APY percentage"),
+    minTvl: z.number().optional().describe("Minimum TVL in USD"),
+    stablecoins: z.boolean().optional().describe("Only stablecoin pools"),
+    limit: z.number().max(50).default(10).describe("Max results (1-50)"),
+}, async ({ chain, project, symbol, minApy, minTvl, stablecoins, limit }) => {
+    const input = { limit };
+    if (chain)
+        input.chain = chain;
+    if (project)
+        input.project = project;
+    if (symbol)
+        input.symbol = symbol;
+    if (minApy != null)
+        input.minApy = minApy;
+    if (minTvl != null)
+        input.minTvl = minTvl;
+    if (stablecoins != null)
+        input.stablecoins = stablecoins;
+    const { status, body } = await invokeX402(SERVICES.yields, input);
+    if (status === 402) {
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
+                },
+            ],
+        };
+    }
+    return {
+        content: [
+            {
+                type: "text",
+                text: JSON.stringify(body.output ?? body, null, 2),
             },
         ],
     };
