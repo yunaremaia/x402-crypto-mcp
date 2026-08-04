@@ -1,0 +1,41 @@
+{
+  "name": "x402-crypto-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "x402-crypto-mcp": "./bin/x402-crypto-mcp.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9",
+    "typescript": "^5.5.4",
+    "@types/node": "^22.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "x402",
+    "crypto",
+    "bitcoin",
+    "ethereum",
+    "agent",
+    "price"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yunaremaia/x402-crypto-mcp"
+  },
+  "description": "MCP server aggregating 3 x402 crypto services (prices, sentiment, indicators)"
+}
