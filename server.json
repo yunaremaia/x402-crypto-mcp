@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.yunaremaia/x402-crypto-mcp",
-  "description": "Crypto market data via x402 pay-per-call: prices (20+ tokens), Fear & Greed sentiment, funding rates, technical indicators (RSI/MACD/EMA), DeFi yields (15k+ pools), multi-chain gas, Aave/Uniswap pool APY-TVL, and new AMM pair discovery. 9 tools, no API keys \u2014 payment IS authentication.",
+  "description": "Crypto market data via x402: prices, sentiment, indicators, yields, gas, pools. 9 tools.",
   "repository": {
     "url": "https://github.com/yunaremaia/x402-crypto-mcp",
     "source": "github"
