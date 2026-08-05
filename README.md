@@ -1,7 +1,8 @@
 # x402 Crypto MCP Server
 
-MCP server that aggregates 3 x402 crypto services as tools for AI agents:
-prices, sentiment, funding rates, and technical indicators.
+MCP server that aggregates **9 x402 crypto services** as tools for AI agents:
+prices, sentiment, funding rates, technical indicators, DeFi yields, gas prices,
+pool metrics, and fresh market discovery.
 
 ## Tools
 
@@ -12,6 +13,10 @@ prices, sentiment, funding rates, and technical indicators.
 | `funding_rate` | Perp funding rate from Binance USDT futures | crypto-market-sentiment |
 | `technical_indicators` | RSI, MACD, EMA, SMA, volatility, ATR + signals | technical-indicators-oracle |
 | `market_overview` | Combined: prices + sentiment + funding in one call | all 3 services |
+| `defi_yields` | Top DeFi yields across 40+ chains (15,000+ pools) | defi-yield-aggregator |
+| `gas_price` | Gas prices on 9 EVM chains (gwei/wei) | multi-chain-gas-oracle |
+| `yield_pool_metrics` | APY/TVL snapshots for Aave V3 / Uniswap V3 pools | yield-pool-watcher |
+| `fresh_markets` | New AMM pairs in the last N minutes | fresh-markets-watch |
 
 ## Install
 
@@ -48,7 +53,11 @@ Your agent must handle x402 payments to access the data.
 - CoinGecko (prices) — free, 60s cache
 - Binance (funding rates, klines) — free
 - Alternative.me (Fear & Greed) — free
+- DeFiLlama (yields) — free, 5min cache
+- Public RPCs (gas) — free, 30s cache
+- The Graph (pool metrics) — free
+- EVM RPCs (new pairs) — free
 
-## License
+## GitHub
 
-MIT
+https://github.com/yunaremaia/x402-crypto-mcp
