@@ -14,6 +14,9 @@ declare const SERVICES: {
     readonly yields: "https://defi-yield-aggregator.vercel.app/entrypoints/yields/invoke";
     readonly gas: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas/invoke";
     readonly gas_multi: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas_multi/invoke";
+    readonly pool_metrics: "https://yield-pool-watcher-five.vercel.app/entrypoints/metrics/invoke";
+    readonly pool_alerts: "https://yield-pool-watcher-five.vercel.app/entrypoints/alerts/invoke";
+    readonly new_pairs: "https://fresh-markets-watch.vercel.app/entrypoints/scan/invoke";
 };
 declare function invokeX402(url: string, input: Record<string, any>): Promise<{
     status: number;

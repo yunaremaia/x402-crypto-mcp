@@ -19,6 +19,9 @@ const SERVICES = {
   yields: "https://defi-yield-aggregator.vercel.app/entrypoints/yields/invoke",
   gas: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas/invoke",
   gas_multi: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas_multi/invoke",
+  pool_metrics: "https://yield-pool-watcher-five.vercel.app/entrypoints/metrics/invoke",
+  pool_alerts: "https://yield-pool-watcher-five.vercel.app/entrypoints/alerts/invoke",
+  new_pairs: "https://fresh-markets-watch.vercel.app/entrypoints/scan/invoke",
 } as const;
 
 // ── Forward to x402 service ──
@@ -253,6 +256,72 @@ server.tool(
   },
   async ({ chain }) => {
     const { status, body } = await invokeX402(SERVICES.gas, { chain });
+    if (status === 402) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
+          },
+        ],
+      };
+    }
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(body.output ?? body, null, 2),
+        },
+      ],
+    };
+  },
+);
+
+// Tool 8: Yield Pool Metrics
+server.tool(
+  "yield_pool_metrics",
+  "Get APY/TVL metrics for Aave V3 and Uniswap V3 pools. Returns pool snapshots with APY, TVL, and 24h deltas.",
+  {
+    protocols: z
+      .array(z.enum(["aave-v3", "uniswap-v3"]))
+      .optional()
+      .describe("Protocols to query (default: both)"),
+    pool_ids: z.array(z.string()).optional().describe("Optional pool IDs to filter"),
+  },
+  async ({ protocols, pool_ids }) => {
+    const { status, body } = await invokeX402(SERVICES.pool_metrics, { protocols, pool_ids });
+    if (status === 402) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
+          },
+        ],
+      };
+    }
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(body.output ?? body, null, 2),
+        },
+      ],
+    };
+  },
+);
+
+// Tool 9: Fresh Markets (new AMM pairs)
+server.tool(
+  "fresh_markets",
+  "List new AMM pairs/pools created in the last N minutes (Uniswap V2, PancakeSwap, SushiSwap factories). For discovery bots and yield scouts.",
+  {
+    chain: z.enum(["ethereum", "bsc", "all"]).optional().describe("Chain to scan (default: all)"),
+    window_minutes: z.number().int().min(1).max(60).optional().describe("Time window in minutes (default: 5)"),
+    limit: z.number().int().min(1).max(50).optional().describe("Max pairs to return (default: 20)"),
+  },
+  async ({ chain, window_minutes, limit }) => {
+    const { status, body } = await invokeX402(SERVICES.new_pairs, { chain, window_minutes, limit });
     if (status === 402) {
       return {
         content: [

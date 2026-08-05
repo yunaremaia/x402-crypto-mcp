@@ -1,6 +1,6 @@
 {
   "name": "x402-crypto-mcp",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "type": "module",
   "bin": {
     "x402-crypto-mcp": "./bin/x402-crypto-mcp.js"
@@ -37,5 +37,5 @@
     "type": "git",
     "url": "https://github.com/yunaremaia/x402-crypto-mcp"
   },
-  "description": "MCP server aggregating 3 x402 crypto services (prices, sentiment, indicators)"
+  "description": "MCP server aggregating 9 x402 crypto services (prices, sentiment, indicators, yields, gas, pool metrics, fresh markets)"
 }
