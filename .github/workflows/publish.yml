@@ -16,7 +16,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+
+      # Trusted publishing requires npm CLI v11.5.1+ (OIDC support)
+      - run: npm install -g npm@latest
 
       - run: npm ci
 
