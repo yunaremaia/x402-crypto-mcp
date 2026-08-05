@@ -37,5 +37,9 @@
     "type": "git",
     "url": "https://github.com/yunaremaia/x402-crypto-mcp"
   },
-  "description": "MCP server aggregating 9 x402 crypto services (prices, sentiment, indicators, yields, gas, pool metrics, fresh markets)"
+  "description": "MCP server aggregating 9 x402 crypto services (prices, sentiment, indicators, yields, gas, pool metrics, fresh markets)",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

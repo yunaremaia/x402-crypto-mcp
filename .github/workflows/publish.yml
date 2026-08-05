@@ -1,0 +1,27 @@
+name: publish.yml
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC token for npm trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - run: npm run build
+
+      # OIDC trusted publishing: npm fetches an OIDC token from the GitHub
+      # Actions environment automatically. No NPM_TOKEN secret required.
+      - run: npm publish --provenance --access public
