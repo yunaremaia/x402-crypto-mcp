@@ -1,6 +1,6 @@
 {
   "name": "x402-crypto-mcp",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "bin": {
     "x402-crypto-mcp": "./bin/x402-crypto-mcp.js"
@@ -41,5 +41,6 @@
   "publishConfig": {
     "access": "public",
     "provenance": true
-  }
+  },
+  "mcpName": "io.github.yunaremaia/x402-crypto-mcp"
 }

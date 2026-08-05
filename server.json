@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.yunaremaia/x402-crypto-mcp",
-  "description": "Crypto prices, sentiment, indicators and DeFi yields via x402. 6 tools, no API keys.",
+  "description": "Crypto market data via x402 pay-per-call: prices (20+ tokens), Fear & Greed sentiment, funding rates, technical indicators (RSI/MACD/EMA), DeFi yields (15k+ pools), multi-chain gas, Aave/Uniswap pool APY-TVL, and new AMM pair discovery. 9 tools, no API keys \u2014 payment IS authentication.",
   "repository": {
     "url": "https://github.com/yunaremaia/x402-crypto-mcp",
     "source": "github"
   },
-  "version": "1.0.1",
+  "version": "1.1.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "x402-crypto-mcp",
-      "version": "1.0.1",
+      "version": "1.1.1",
       "transport": {
         "type": "stdio"
       }
