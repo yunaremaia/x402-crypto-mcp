@@ -32,9 +32,26 @@ async function invokeX402(url, input) {
         const body = await res.json().catch(() => ({ raw: res.statusText }));
         return { status: res.status, body };
     }
-    catch (err) {
-        return { status: 0, body: { error: err?.message ?? "fetch failed" } };
+    catch (e) {
+        return { status: 0, body: { error: String(e?.message ?? e) } };
     }
+}
+// ── Safe output formatting (prevents 413 "Request payload too large") ──
+const MAX_TEXT = 150_000; // ~150KB per tool response, well under 4MB MCP limit
+function safeText(body) {
+    let text;
+    try {
+        text = JSON.stringify(body?.output ?? body, null, 2);
+    }
+    catch {
+        text = String(body);
+    }
+    if (text.length <= MAX_TEXT)
+        return text;
+    // Truncate smartly: keep head + tail with a marker
+    const head = text.slice(0, Math.floor(MAX_TEXT * 0.6));
+    const tail = text.slice(-Math.floor(MAX_TEXT * 0.3));
+    return `${head}\n... [TRUNCATED by x402-crypto-mcp: ${text.length} chars -> use limit/filters to reduce] ...\n${tail}`;
 }
 // ── MCP Server ──
 const server = new McpServer({
@@ -64,7 +81,7 @@ server.tool("crypto_prices", "Get live USD prices for crypto tokens (BTC, ETH, S
         content: [
             {
                 type: "text",
-                text: JSON.stringify(body.output ?? body, null, 2),
+                text: safeText(body),
             },
         ],
     };
@@ -86,7 +103,7 @@ server.tool("market_sentiment", "Get crypto market sentiment: Fear & Greed index
         content: [
             {
                 type: "text",
-                text: JSON.stringify(body.output ?? body, null, 2),
+                text: safeText(body),
             },
         ],
     };
@@ -110,7 +127,7 @@ server.tool("funding_rate", "Get perp funding rate for a crypto symbol from Bina
         content: [
             {
                 type: "text",
-                text: JSON.stringify(body.output ?? body, null, 2),
+                text: safeText(body),
             },
         ],
     };
@@ -141,7 +158,7 @@ server.tool("technical_indicators", "Get technical analysis indicators: RSI(7/14
         content: [
             {
                 type: "text",
-                text: JSON.stringify(body.output ?? body, null, 2),
+                text: safeText(body),
             },
         ],
     };
@@ -205,7 +222,7 @@ server.tool("defi_yields", "Get top DeFi yields across 40+ chains (DeFiLlama, 15
         content: [
             {
                 type: "text",
-                text: JSON.stringify(body.output ?? body, null, 2),
+                text: safeText(body),
             },
         ],
     };
@@ -229,7 +246,7 @@ server.tool("gas_price", "Get current gas price on an EVM chain. Returns gwei an
         content: [
             {
                 type: "text",
-                text: JSON.stringify(body.output ?? body, null, 2),
+                text: safeText(body),
             },
         ],
     };
@@ -257,7 +274,7 @@ server.tool("yield_pool_metrics", "Get APY/TVL metrics for Aave V3 and Uniswap V
         content: [
             {
                 type: "text",
-                text: JSON.stringify(body.output ?? body, null, 2),
+                text: safeText(body),
             },
         ],
     };
@@ -283,7 +300,7 @@ server.tool("fresh_markets", "List new AMM pairs/pools created in the last N min
         content: [
             {
                 type: "text",
-                text: JSON.stringify(body.output ?? body, null, 2),
+                text: safeText(body),
             },
         ],
     };
@@ -291,4 +308,4 @@ server.tool("fresh_markets", "List new AMM pairs/pools created in the last N min
 // ── Start ──
 const transport = new StdioServerTransport();
 await server.connect(transport);
-export { server, invokeX402, SERVICES };
+export { server, invokeX402, SERVICES, safeText };

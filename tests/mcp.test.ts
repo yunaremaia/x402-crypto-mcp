@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { invokeX402, SERVICES } from "../src/index.js";
+import { invokeX402, SERVICES, safeText } from "../src/index.js";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -46,5 +46,26 @@ describe("SERVICES", () => {
     expect(SERVICES.funding).toContain("crypto-market-sentiment");
     expect(SERVICES.indicators).toContain("technical-indicators-oracle");
     expect(SERVICES.yields).toContain("defi-yield-aggregator");
+  });
+});
+
+describe("safeText", () => {
+  it("keeps small payloads unchanged", () => {
+    const small = { output: { ok: true } };
+    const text = safeText(small);
+    expect(text).toContain('"ok"');
+    expect(text).not.toContain("TRUNCATED");
+  });
+
+  it("truncates oversized payloads with a marker", () => {
+    const big = { output: { data: "x".repeat(400_000) } };
+    const text = safeText(big);
+    expect(text.length).toBeLessThan(200_000);
+    expect(text).toContain("TRUNCATED");
+    expect(text).toContain("use limit/filters");
+  });
+
+  it("handles string bodies", () => {
+    expect(safeText("hello")).toBe('"hello"');
   });
 });

@@ -37,9 +37,27 @@ async function invokeX402(
     });
     const body = await res.json().catch(() => ({ raw: res.statusText }));
     return { status: res.status, body };
-  } catch (err: any) {
-    return { status: 0, body: { error: err?.message ?? "fetch failed" } };
+  } catch (e: any) {
+    return { status: 0, body: { error: String(e?.message ?? e) } };
   }
+}
+
+// ── Safe output formatting (prevents 413 "Request payload too large") ──
+const MAX_TEXT = 150_000; // ~150KB per tool response, well under 4MB MCP limit
+
+function safeText(body: any): string {
+  let text: string;
+  try {
+    text = JSON.stringify(body?.output ?? body, null, 2);
+  } catch {
+    text = String(body);
+  }
+  if (text.length <= MAX_TEXT) return text;
+
+  // Truncate smartly: keep head + tail with a marker
+  const head = text.slice(0, Math.floor(MAX_TEXT * 0.6));
+  const tail = text.slice(-Math.floor(MAX_TEXT * 0.3));
+  return `${head}\n... [TRUNCATED by x402-crypto-mcp: ${text.length} chars -> use limit/filters to reduce] ...\n${tail}`;
 }
 
 // ── MCP Server ──
@@ -75,7 +93,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(body.output ?? body, null, 2),
+          text: safeText(body),
         },
       ],
     };
@@ -103,7 +121,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(body.output ?? body, null, 2),
+          text: safeText(body),
         },
       ],
     };
@@ -133,7 +151,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(body.output ?? body, null, 2),
+          text: safeText(body),
         },
       ],
     };
@@ -170,7 +188,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(body.output ?? body, null, 2),
+          text: safeText(body),
         },
       ],
     };
@@ -240,7 +258,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(body.output ?? body, null, 2),
+          text: safeText(body),
         },
       ],
     };
@@ -270,7 +288,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(body.output ?? body, null, 2),
+          text: safeText(body),
         },
       ],
     };
@@ -304,7 +322,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(body.output ?? body, null, 2),
+          text: safeText(body),
         },
       ],
     };
@@ -336,7 +354,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(body.output ?? body, null, 2),
+          text: safeText(body),
         },
       ],
     };
@@ -347,4 +365,4 @@ server.tool(
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
-export { server, invokeX402, SERVICES };
+export { server, invokeX402, SERVICES, safeText };

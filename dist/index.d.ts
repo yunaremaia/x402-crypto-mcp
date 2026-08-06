@@ -22,5 +22,6 @@ declare function invokeX402(url: string, input: Record<string, any>): Promise<{
     status: number;
     body: any;
 }>;
+declare function safeText(body: any): string;
 declare const server: McpServer;
-export { server, invokeX402, SERVICES };
+export { server, invokeX402, SERVICES, safeText };
