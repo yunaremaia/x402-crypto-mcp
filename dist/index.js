@@ -1,310 +1,71 @@
 /**
- * x402 Crypto MCP Server
- * Aggregates 3 x402 services (price, sentiment, indicators) as MCP tools.
+ * x402 Crypto MCP Server — STDIO Transport
+ * Aggregates 9 x402 crypto services as MCP tools.
  * Agents call these tools; the MCP server forwards to the x402 services.
  * NOTE: x402 payment must be handled by the calling agent (this server
  * returns the 402 challenge — the agent pays and retries).
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-// ── Service URLs ──
-const SERVICES = {
-    price: "https://multi-chain-price-oracle.vercel.app/entrypoints/price/invoke",
-    sentiment: "https://crypto-market-sentiment.vercel.app/entrypoints/sentiment/invoke",
-    funding: "https://crypto-market-sentiment.vercel.app/entrypoints/funding/invoke",
-    indicators: "https://technical-indicators-oracle.vercel.app/entrypoints/indicators/invoke",
-    yields: "https://defi-yield-aggregator.vercel.app/entrypoints/yields/invoke",
-    gas: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas/invoke",
-    gas_multi: "https://multi-chain-gas-oracle.vercel.app/entrypoints/gas_multi/invoke",
-    pool_metrics: "https://yield-pool-watcher-five.vercel.app/entrypoints/metrics/invoke",
-    pool_alerts: "https://yield-pool-watcher-five.vercel.app/entrypoints/alerts/invoke",
-    new_pairs: "https://fresh-markets-watch.vercel.app/entrypoints/scan/invoke",
-};
-// ── Forward to x402 service ──
-async function invokeX402(url, input) {
-    try {
-        const res = await fetch(url, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ input }),
-        });
-        const body = await res.json().catch(() => ({ raw: res.statusText }));
-        return { status: res.status, body };
-    }
-    catch (e) {
-        return { status: 0, body: { error: String(e?.message ?? e) } };
-    }
-}
-// ── Safe output formatting (prevents 413 "Request payload too large") ──
-const MAX_TEXT = 150_000; // ~150KB per tool response, well under 4MB MCP limit
-function safeText(body) {
-    let text;
-    try {
-        text = JSON.stringify(body?.output ?? body, null, 2);
-    }
-    catch {
-        text = String(body);
-    }
-    if (text.length <= MAX_TEXT)
-        return text;
-    // Truncate smartly: keep head + tail with a marker
-    const head = text.slice(0, Math.floor(MAX_TEXT * 0.6));
-    const tail = text.slice(-Math.floor(MAX_TEXT * 0.3));
-    return `${head}\n... [TRUNCATED by x402-crypto-mcp: ${text.length} chars -> use limit/filters to reduce] ...\n${tail}`;
-}
+import { toolSchemas, stdioToolNames, SERVICES, invokeX402, safeText, paymentRequiredMessage } from "./tools/index.js";
 // ── MCP Server ──
 const server = new McpServer({
     name: "x402-crypto",
-    version: "1.0.0",
+    version: "1.1.3",
 });
-// Tool 1: Crypto Prices
-server.tool("crypto_prices", "Get live USD prices for crypto tokens (BTC, ETH, SOL, USDC, etc.). Returns current price in USD. Free data from CoinGecko with 60s cache.", {
-    symbols: z
-        .array(z.string().max(10))
-        .min(1)
-        .max(20)
-        .describe("Token symbols, e.g. ['BTC', 'ETH', 'SOL']"),
-}, async ({ symbols }) => {
-    const { status, body } = await invokeX402(SERVICES.price, { symbols });
-    if (status === 402) {
+// Register all stdio tools from shared definitions
+for (const toolName of stdioToolNames) {
+    const def = toolSchemas[toolName];
+    if (!def)
+        continue;
+    if (toolName === "market_overview") {
+        // Special case: combines multiple services
+        server.tool(toolName, def.description, def.schema, async () => {
+            const [prices, sentiment, funding] = await Promise.all([
+                invokeX402(SERVICES.price, { symbols: ["BTC", "ETH", "SOL"] }),
+                invokeX402(SERVICES.sentiment, {}),
+                invokeX402(SERVICES.funding, { symbol: "BTC" }),
+            ]);
+            const overview = {
+                prices: prices.body.output ?? prices.body,
+                sentiment: sentiment.body.output ?? sentiment.body,
+                funding: funding.body.output ?? funding.body,
+            };
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: JSON.stringify(overview, null, 2),
+                    },
+                ],
+            };
+        });
+        continue;
+    }
+    const serviceUrl = SERVICES[def.service];
+    const transform = def.transform;
+    server.tool(toolName, def.description, def.schema, async (input) => {
+        const { status, body } = await invokeX402(serviceUrl, transform(input));
+        if (status === 402) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: paymentRequiredMessage(body),
+                    },
+                ],
+            };
+        }
         return {
             content: [
                 {
                     type: "text",
-                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base, then set X-PAYMENT header.`,
+                    text: safeText(body),
                 },
             ],
         };
-    }
-    return {
-        content: [
-            {
-                type: "text",
-                text: safeText(body),
-            },
-        ],
-    };
-});
-// Tool 2: Market Sentiment
-server.tool("market_sentiment", "Get crypto market sentiment: Fear & Greed index (0-100) + global market metrics (total cap, BTC/ETH dominance).", {}, async () => {
-    const { status, body } = await invokeX402(SERVICES.sentiment, {});
-    if (status === 402) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
-                },
-            ],
-        };
-    }
-    return {
-        content: [
-            {
-                type: "text",
-                text: safeText(body),
-            },
-        ],
-    };
-});
-// Tool 3: Funding Rate
-server.tool("funding_rate", "Get perp funding rate for a crypto symbol from Binance USDT futures. Positive = longs pay shorts (bullish bias).", {
-    symbol: z.string().min(1).max(12).describe("Base symbol: BTC, ETH, SOL, etc."),
-}, async ({ symbol }) => {
-    const { status, body } = await invokeX402(SERVICES.funding, { symbol });
-    if (status === 402) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
-                },
-            ],
-        };
-    }
-    return {
-        content: [
-            {
-                type: "text",
-                text: safeText(body),
-            },
-        ],
-    };
-});
-// Tool 4: Technical Indicators
-server.tool("technical_indicators", "Get technical analysis indicators: RSI(7/14), MACD, EMA(20/50), SMA(20/50), volatility, ATR + trend/momentum signals. From Binance klines.", {
-    symbol: z.string().min(1).max(12).describe("Base symbol: BTC, ETH, SOL, etc."),
-    interval: z
-        .enum(["1m", "5m", "15m", "1h", "4h", "1d"])
-        .default("1h")
-        .describe("Kline interval"),
-}, async ({ symbol, interval }) => {
-    const { status, body } = await invokeX402(SERVICES.indicators, {
-        symbol,
-        interval,
     });
-    if (status === 402) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
-                },
-            ],
-        };
-    }
-    return {
-        content: [
-            {
-                type: "text",
-                text: safeText(body),
-            },
-        ],
-    };
-});
-// Tool 5: Bundle — price + sentiment + funding in one call
-server.tool("market_overview", "Quick market overview: BTC/ETH/SOL prices + Fear & Greed + BTC funding rate in one combined call.", {}, async () => {
-    const [prices, sentiment, funding] = await Promise.all([
-        invokeX402(SERVICES.price, { symbols: ["BTC", "ETH", "SOL"] }),
-        invokeX402(SERVICES.sentiment, {}),
-        invokeX402(SERVICES.funding, { symbol: "BTC" }),
-    ]);
-    const overview = {
-        prices: prices.body.output ?? prices.body,
-        sentiment: sentiment.body.output ?? sentiment.body,
-        funding: funding.body.output ?? funding.body,
-    };
-    return {
-        content: [
-            {
-                type: "text",
-                text: JSON.stringify(overview, null, 2),
-            },
-        ],
-    };
-});
-// Tool 6: DeFi Yields
-server.tool("defi_yields", "Get top DeFi yields across 40+ chains (DeFiLlama, 15,000+ pools). Filter by chain, project, symbol, min APY, min TVL, stablecoins.", {
-    chain: z.string().max(30).optional().describe("Chain: Ethereum, Arbitrum, Solana, Base..."),
-    project: z.string().max(50).optional().describe("Protocol: lido, aave, uniswap..."),
-    symbol: z.string().max(20).optional().describe("Token symbol: USDC, ETH, SOL..."),
-    minApy: z.number().optional().describe("Minimum APY percentage"),
-    minTvl: z.number().optional().describe("Minimum TVL in USD"),
-    stablecoins: z.boolean().optional().describe("Only stablecoin pools"),
-    limit: z.number().max(50).default(10).describe("Max results (1-50)"),
-}, async ({ chain, project, symbol, minApy, minTvl, stablecoins, limit }) => {
-    const input = { limit };
-    if (chain)
-        input.chain = chain;
-    if (project)
-        input.project = project;
-    if (symbol)
-        input.symbol = symbol;
-    if (minApy != null)
-        input.minApy = minApy;
-    if (minTvl != null)
-        input.minTvl = minTvl;
-    if (stablecoins != null)
-        input.stablecoins = stablecoins;
-    const { status, body } = await invokeX402(SERVICES.yields, input);
-    if (status === 402) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
-                },
-            ],
-        };
-    }
-    return {
-        content: [
-            {
-                type: "text",
-                text: safeText(body),
-            },
-        ],
-    };
-});
-// Tool 7: Gas Price
-server.tool("gas_price", "Get current gas price on an EVM chain. Returns gwei and wei values.", {
-    chain: z.string().min(1).max(20).describe("Chain: ethereum, base, arbitrum, optimism, polygon, bsc, avalanche"),
-}, async ({ chain }) => {
-    const { status, body } = await invokeX402(SERVICES.gas, { chain });
-    if (status === 402) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
-                },
-            ],
-        };
-    }
-    return {
-        content: [
-            {
-                type: "text",
-                text: safeText(body),
-            },
-        ],
-    };
-});
-// Tool 8: Yield Pool Metrics
-server.tool("yield_pool_metrics", "Get APY/TVL metrics for Aave V3 and Uniswap V3 pools. Returns pool snapshots with APY, TVL, and 24h deltas.", {
-    protocols: z
-        .array(z.enum(["aave-v3", "uniswap-v3"]))
-        .optional()
-        .describe("Protocols to query (default: both)"),
-    pool_ids: z.array(z.string()).optional().describe("Optional pool IDs to filter"),
-}, async ({ protocols, pool_ids }) => {
-    const { status, body } = await invokeX402(SERVICES.pool_metrics, { protocols, pool_ids });
-    if (status === 402) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
-                },
-            ],
-        };
-    }
-    return {
-        content: [
-            {
-                type: "text",
-                text: safeText(body),
-            },
-        ],
-    };
-});
-// Tool 9: Fresh Markets (new AMM pairs)
-server.tool("fresh_markets", "List new AMM pairs/pools created in the last N minutes (Uniswap V2, PancakeSwap, SushiSwap factories). For discovery bots and yield scouts.", {
-    chain: z.enum(["ethereum", "bsc", "all"]).optional().describe("Chain to scan (default: all)"),
-    window_minutes: z.number().int().min(1).max(60).optional().describe("Time window in minutes (default: 5)"),
-    limit: z.number().int().min(1).max(50).optional().describe("Max pairs to return (default: 20)"),
-}, async ({ chain, window_minutes, limit }) => {
-    const { status, body } = await invokeX402(SERVICES.new_pairs, { chain, window_minutes, limit });
-    if (status === 402) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `x402 payment required. Pay ${body.accepts?.[0]?.maxAmountRequired} USDC to ${body.accepts?.[0]?.payTo} on Base.`,
-                },
-            ],
-        };
-    }
-    return {
-        content: [
-            {
-                type: "text",
-                text: safeText(body),
-            },
-        ],
-    };
-});
+}
 // ── Start ──
 const transport = new StdioServerTransport();
 await server.connect(transport);

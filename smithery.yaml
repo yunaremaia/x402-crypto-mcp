@@ -3,4 +3,4 @@ description: "MCP server aggregating 9 x402 crypto services - live prices for 20
 homepage: "https://github.com/yunaremaia/x402-crypto-mcp"
 name: "x402-crypto-mcp"
 license: "MIT"
-version: "1.1.0"
+version: "1.1.3"
